@@ -27,6 +27,7 @@ class MMDetection(LabelStudioMLBase):
                  labels_file=None,
                  score_threshold=0.5,
                  device='cpu',
+                 text_prompt=None,
                  **kwargs):
 
         super(MMDetection, self).__init__(**kwargs)
@@ -61,6 +62,7 @@ class MMDetection(LabelStudioMLBase):
         print('Load new model from: ', config_file, checkpoint_file)
         self.model = init_detector(config_file, checkpoint_file, device=device)
         self.score_thresh = score_threshold
+        self.text_prompt = text_prompt
 
     def _get_image_url(self, task):
         image_url = task['data'].get(
@@ -89,8 +91,11 @@ class MMDetection(LabelStudioMLBase):
         task = tasks[0]
         image_url = self._get_image_url(task)
         image_path = self.get_local_path(image_url)
-        model_results = inference_detector(self.model,
-                                           image_path).pred_instances
+        model_results = inference_detector(
+            self.model, 
+            image_path,
+            text_prompt=self.text_prompt,
+        ).pred_instances
         results = []
         all_scores = []
         img_width, img_height = get_image_size(image_path)
