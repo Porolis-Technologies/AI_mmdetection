@@ -21,13 +21,13 @@ class MMDetection(LabelStudioMLBase):
     """Object detector based on https://github.com/open-mmlab/mmdetection."""
 
     def __init__(self,
-                 config_file=None,
-                 checkpoint_file=None,
+                 config_file,
+                 checkpoint_file,
+                 text_prompt,
                  image_dir=None,
                  labels_file=None,
                  score_threshold=0.5,
                  device='cpu',
-                 text_prompt=None,
                  **kwargs):
 
         super(MMDetection, self).__init__(**kwargs)
@@ -48,16 +48,7 @@ class MMDetection(LabelStudioMLBase):
 
         self.from_name, self.to_name, self.value, self.labels_in_config = get_single_tag_keys(  # noqa E501
             self.parsed_label_config, 'RectangleLabels', 'Image')
-        schema = list(self.parsed_label_config.values())[0]
         self.labels_in_config = set(self.labels_in_config)
-
-        # Collect label maps from `predicted_values="airplane,car"` attribute in <Label> tag # noqa E501
-        self.labels_attrs = schema.get('labels_attrs')
-        if self.labels_attrs:
-            for label_name, label_attrs in self.labels_attrs.items():
-                for predicted_value in label_attrs.get('predicted_values',
-                                                       '').split(','):
-                    self.label_map[predicted_value] = label_name
 
         print('Load new model from: ', config_file, checkpoint_file)
         self.model = init_detector(config_file, checkpoint_file, device=device)
@@ -100,20 +91,17 @@ class MMDetection(LabelStudioMLBase):
         all_scores = []
         img_width, img_height = get_image_size(image_path)
         print(f'>>> model_results: {model_results}')
-        print(f'>>> label_map {self.label_map}')
-        print(f'>>> self.model.dataset_meta: {self.model.dataset_meta}')
-        classes = self.model.dataset_meta.get('classes')
+        classes = self.text_prompt.split(',')
         print(f'Classes >>> {classes}')
         for item in model_results:
             print(f'item >>>>> {item}')
-            bboxes, label, scores = item['bboxes'], item['labels'], item[
-                'scores']
+            bboxes, label, scores = item['bboxes'], item['labels'], item['scores']
             score = float(scores[-1])
             if score < self.score_thresh:
                 continue
             print(f'bboxes >>>>> {bboxes}')
             print(f'label >>>>> {label}')
-            output_label = classes[list(self.label_map.get(label, label))[0]]
+            output_label = classes[label]  # TODO: Model doesnt follow this sequence.
             print(f'>>> output_label: {output_label}')
             if output_label not in self.labels_in_config:
                 print(output_label + ' label not found in project config.')
